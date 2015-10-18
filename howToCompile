@@ -1,0 +1,2 @@
+Now simply "make". 
+g++ -O3 -std=c++11 main.cpp EulerSimulation.cpp Matrix.cpp Double.cpp Date.cpp SimulNorm.cpp Swap.cpp -o marketRisk
