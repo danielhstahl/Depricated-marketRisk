@@ -1,15 +1,42 @@
 #include "Vasicek.h"
 
-/*Vasicek::Vasicek(YieldCurve& yield, Rate r0){
-
-
-}*/
+Vasicek::Vasicek(YieldCurve& yield_, VolatilityCurve& vCurve_, Rate r0_){
+  yield=yield_;
+  vCurve=vCurve_;
+  r0=r0_;
+  estimateSpeedVolatility();
+  estimateTheta();
+}
 Vasicek::Vasicek(YieldCurve &yield_, Speed a_, ShortRateSigma sigma_, Rate r0_){
   a=a_;
   yield=yield_;
   sigma=sigma_;
   r0=r0_;
   estimateTheta();
+}
+void Vasicek::estimateSpeedVolatility(){
+  Newton nt;
+  std::vector<std::function<double(std::vector<double>&, std::vector<double>&)> > meanSquare;
+  int n=vCurve.size();
+  std::vector<double> dataToMinimizeOver(n); //the volatility from above
+  std::vector<std::vector<double> > additionalParameters(n, std::vector<double>(2)); //a and sigma
+  for(int i=0; i<n; i++){ //populate our functions to minimize over.
+    vCurve[i].beginDate.setScale("year");
+    vCurve[i].endDate.setScale("year");
+    dataToMinimizeOver[i]=vCurve[i].value;
+    Date currDate;
+    additionalParameters[i][0]=vCurve[i].endDate-currDate;
+    additionalParameters[i][1]=vCurve[i].beginDate-currDate;
+    meanSquare.push_back([](std::vector<double> &guess, std::vector<double> &additionalParameters){
+      return Vasicek_Volatility(guess[0], guess[1], additionalParameters[0], additionalParameters[1]);
+    });
+  }
+  std::vector<double> guess(2);
+  guess[0]=.3; //these seem decent guesses
+  guess[1]=.1;//these seem decent guesses
+  nt.optimize(meanSquare, additionalParameters, dataToMinimizeOver, guess);
+  a=guess[0];
+  sigma=guess[1];
 }
 void Vasicek::estimateTheta(){ //can only be run after Speed, ShortRateSigma are found
   n=yield.size();
