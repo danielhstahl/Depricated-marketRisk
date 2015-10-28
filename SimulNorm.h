@@ -2,36 +2,30 @@
 #define __SIMULNORM_H_INCLUDED__
 #include <random>
 #include <chrono>
-#include <type_traits>
-template<typename numberType>
 class SimulNorm{
 private:
   std::mt19937_64 generator;
   std::normal_distribution<double> norm;
   int seed;
-  int n=0;
-  numberType result;
 public:
-  SimulNorm(int n_){
+  SimulNorm(){
     seed=std::chrono::system_clock::now().time_since_epoch().count();
     generator.seed(seed);
-    n=n_;
+    //n=n_;
     norm=std::normal_distribution<double>(0.0, 1.0);
   }
-  SimulNorm(int n_, int seed){
+  SimulNorm(int seed){
     generator.seed(seed);
-    n=n_;
+    //n=n_;
     norm=std::normal_distribution<double>(0.0, 1.0);
   }
-  SimulNorm(int n_, double mu, double sigma, int seed){
+  SimulNorm(double mu, double sigma, int seed){
     generator.seed(seed);
     norm=std::normal_distribution<double>(mu, sigma);
-    n=n_;
   }
-  SimulNorm(int n_, double mu, double sigma){
+  SimulNorm(double mu, double sigma){
     seed=std::chrono::system_clock::now().time_since_epoch().count();
     generator.seed(seed);
-    n=n_;
     norm=std::normal_distribution<double>(mu, sigma);
   }
   /*template<typename num=numberType>
@@ -48,8 +42,9 @@ public:
   }
   template<typename num=numberType>
   typename std::enable_if<!std::is_fundamental<num>::value, std::vector<double> >::type*/
-  void setNorm(){
-    if(n==1){
+  double getNorm(){
+    return norm(generator); //will this work???
+    /*if(n==1){
       result=numberType(norm(generator)); //will this work???
     }
     else{
@@ -58,13 +53,13 @@ public:
         v[i]=norm(generator);
       }
       result=numberType(v);
-    }
+    }*/
 
     //return v; //hopefully optimizer takes care of the copy
   }
-  numberType getNorm(){
+  /*numberType getNorm(){
     setNorm();
     return result;
-  }
+  }*/
 };
 #endif

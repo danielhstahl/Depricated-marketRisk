@@ -2,7 +2,41 @@
 #define __MARKETDATA_H_INCLUDED__
 #include "Date.h"
 
-
+ struct AssetFeatures{
+   Date Maturity;
+   Date UnderlyingMaturity;
+   double Strike;
+   double Tenor;
+   std::string type;
+   AssetFeatures(const Date &maturity, double strike, const char type_[]){
+     Maturity=maturity;
+     Strike=strike;
+     type=std::string(type_);
+   }
+   AssetFeatures(const Date &maturity, const char type_[]){
+     Maturity=maturity;
+     type=std::string(type_);
+   }
+   AssetFeatures(const Date &maturity, double strike, double tenor, const char type_[]){
+     Maturity=maturity;
+     Strike=strike;
+     Tenor=tenor;
+     type=std::string(type_);
+   }
+   AssetFeatures(const Date &maturity, double strike, double tenor, const Date &underlyingMaturity, const char type_[]){
+     Maturity=maturity;
+     Strike=strike;
+     UnderlyingMaturity=underlyingMaturity;
+     Tenor=tenor;
+     type=std::string(type_);
+   }
+   AssetFeatures(const Date &maturity, double strike, const Date &underlyingMaturity, const char type_[]){
+     Maturity=maturity;
+     UnderlyingMaturity=underlyingMaturity;
+     Strike=strike;
+     type=std::string(type_);
+   }
+ };
  struct ForwardValue{
    Date beginDate;
    Date endDate;
