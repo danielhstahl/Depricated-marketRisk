@@ -14,4 +14,5 @@ std::vector<double> MC::getDistribution(){
 double MC::getVaR(double q){ //eg, .99
   std::sort(distribution.begin(), distribution.end());
   return distribution[(int)((1.0-q)*m)];
+  //return distribution[(int)((1.0-q)*m)];
 }

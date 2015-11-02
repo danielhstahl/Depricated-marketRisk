@@ -16,33 +16,10 @@
 #include "MarketData.h"
 #include "Newton.h"
 #include "MC.h"
-
-/*struct SpotValue {
-  Date date;
-  double value;
-}*/
-/*struct ForwardValue{
-  Date beginDate;
-  Date endDate;
-  Double value;
-};
-Matrix alpha(double t, Matrix &x){
-  return .1*x;
-}
-Matrix sigma(double t, Matrix &x){
-
-  return .3*x;
-}
-double callback(Matrix val, double valth){
-  return val.l1norm();
-}*/
-
-//double meanSquare(std::vector<SpotValue> &volatility){
-
-//}
+#include "HandleYield.h"
 
 int main(){
-  MC mc(100);//100000 run initially
+  MC mc(1000);//100000 run initially
   /*create portfolio...note that this is a "fake" portfolio for demonstration*/
   int sizeOfPortfolio=3000;//3000 distinct assets
   Date currDate;
@@ -63,7 +40,7 @@ int main(){
   }
   currDate.setScale("day");
   Date simulateToDate=currDate+10;//ten day VaR
-  double future=simulateToDate-currDate; //convert to decimal
+  double future=simulateToDate-currDate; //convert date to double
   std::map<double, double> holdPossibleDates; //using "map" to ensure sorted keys
   double diff=0;
   for(int i=0; i<sizeOfPortfolio;i++){
@@ -78,9 +55,9 @@ int main(){
 
   double a=.4; //speed
   double b=.05; //long run average
-  double sig=.001; //volatility of the process
+  double sig=.01; //volatility of the process
   double t=1;
-  double r0=.07;
+  double r0=.03;
   double delta=.25;
 
   /*Newton Test */
@@ -106,56 +83,64 @@ int main(){
   double delt=0;
   for(int i=0; i<20; i++){
     delt=(i+1)*.25;
-    std::cout<<dt+delt<<": ";
-    std::cout<<-log(Vasicek_Price(r0, a, b, sig, delt))/delt<<std::endl;
+
     yield.push_back(SpotValue(dt+delt, -log(Vasicek_Price(r0, a, b, sig, delt))/delt));
   }
-
+  //HandleYield<NelsonSiegel> hy(yield); //uses nelsonsiegel method to find yield
   //Now we actually fit the data.  Note that the constructor automatically fits "Speed" and "Volatility" to the volatility surface using newton's method.  The constructor also estimates the "Theta" that fits the yield curve.
 
   Vasicek vs(yield, volatilitySurface, r0); //this construtor currently prints the estimate of "theta".  In this example, these estimates are constant (since theta(t)=mu for all t)
+
+  for(int i=0; i<20; i++){
+    delt=(i+1)*.25;
+
+    std::cout<<dt+delt<<": ";
+
+    std::cout<<-log(Vasicek_Price(r0, a, b, sig, delt))/delt<<" ";
+    std::cout<<vs.get_yield_spline(delt)/delt<<" ";
+    std::cout<<vs.get_forward_rate_spline(delt)<<std::endl;
+  }
 
   /*some tests to ensure correct computations */
   std::cout<<vs.Bond_Price(t)<<std::endl; //This should be the same as the below
   std::cout<<Vasicek_Price(r0, a, b, sig, t)<<std::endl;  //This should be the same as above.
   std::cout<<Vasicek_Caplet(r0, a, b, sig, .04, delta, t)<<std::endl; //option on simple interest rate
+  std::cout<<vs.Caplet(r0, .04, .04, delta, t)<<std::endl;
 
-  std::cout<<vs.Caplet(r0, .04, .04, delta, 1)<<std::endl;
   std::cout<<vs.Caplet(r0, 0, .04, delta, t)<<std::endl;
   std::cout<<vs.Bond_Call(.02, 0, .92, 3, 2)<<std::endl;
+  std::cout<<vs.Bond_Put(.01, 0, .99, 3, 2)<<std::endl;
   std::cout<<vs.Swap_Rate(.25, 4.5)<<std::endl;
-  std::cout<<vs.Swaption(r0, 0, .04, .25, 4.5, .5)<<std::endl;//Rate, FutureTime, Strike, Tenor, SwapMaturity, OptionMaturity
+  std::cout<<"Swaption: "<<vs.Swaption(r0, 0, .04, .25, 4.5, .5)<<std::endl;//Rate, FutureTime, Strike, Tenor, SwapMaturity, OptionMaturity
+  std::vector<double> cashFl;
+  for(int i=0; i<15; i++){
+    cashFl.push_back(.5+.25*(i+1));
+  }
+  std::cout<<"Swaption Analytic: "<<vs.Swaption(r0, 0, .04, cashFl, .5)<<std::endl;
+
+
   /*end tests */
   SimulNorm simul;
   vs.setFutureTimes(holdPossibleDates);
-
   /*test current portfolio */
+
   double portVal=0;
   for(int i=0; i<sizeOfPortfolio; ++i){
     double diffDate=portfolio[i].Maturity-currDate;
     double r=r0;
     double t=0;
-
-  //  std::cout<<r<<std::endl;
     if(portfolio[i].type=="bond"){ //concerned here...I want this to be more automated (eg, simply call bond price automatically, but how to deal with parameters?)
 
       portVal+=vs.Bond_Price(r, t, portfolio[i].Maturity-currDate);//zero coupons remember...but are we assuming reinvestment??  Good grief that could get complicated...
-      //std::cout<<vs.Bond_Price(r, t, portfolio[i].Maturity-currDate)<<std::endl;
     }
     else if(portfolio[i].type=="caplet"){
       portVal+=vs.Caplet(r, t, portfolio[i].Strike, portfolio[i].Tenor, portfolio[i].Maturity-currDate);
-    //  std::cout<<vs.Caplet(r, t, portfolio[i].Strike, portfolio[i].Tenor, portfolio[i].Maturity-currDate)<<std::endl;
     }
     else if(portfolio[i].type=="swaption"){
       portVal+=vs.Swaption(r, t, portfolio[i].Strike, portfolio[i].Tenor, portfolio[i].UnderlyingMaturity-currDate, portfolio[i].Maturity-currDate);
     }
     else if(portfolio[i].type=="call"){
-      //double val=vs.Bond_Call(r, t, portfolio[i].Strike, portfolio[i].UnderlyingMaturity-currDate, portfolio[i].Maturity-currDate);
-      //if(val!=val){ //then nan
-        //std::cout<<"r: "<<r<<" t: "<<t<<" strike: "<<portfolio[i].Strike<<" underlying: "<<portfolio[i].UnderlyingMaturity-currDate<<" maturity: "<< portfolio[i].Maturity-currDate<<std::endl;
-    //  }
       portVal+=vs.Bond_Call(r, t, portfolio[i].Strike, portfolio[i].UnderlyingMaturity-currDate, portfolio[i].Maturity-currDate);
-      //std::cout<<vs.Bond_Call(r, t, portfolio[i].Strike, portfolio[i].UnderlyingMaturity-currDate, portfolio[i].Maturity-currDate)<<std::endl;
     }
   }
   std::cout<<"Current value of portfolio: "<<portVal<<std::endl;
@@ -164,10 +149,12 @@ int main(){
     std::unordered_map<double, double> ratePath=vs.simulate(simul); //simulates path
     double valueOfPortfolio=0;
     //bond, caplet, call
+    double r=0;
+    double t=0;
     for(int i=0; i<sizeOfPortfolio; ++i){
       double diffDate=portfolio[i].Maturity-currDate;
-      double r=0;
-      double t=0;
+      r=0;
+      t=0;
       if(ratePath.find(diffDate)!=ratePath.end()){ //if maturity is less than simulation
         r=ratePath.find(diffDate)->second;
         t=diffDate;
@@ -178,24 +165,16 @@ int main(){
       }
     //  std::cout<<r<<std::endl;
       if(portfolio[i].type=="bond"){ //concerned here...I want this to be more automated (eg, simply call bond price automatically, but how to deal with parameters?)
-
         valueOfPortfolio+=vs.Bond_Price(r, t, portfolio[i].Maturity-currDate);//zero coupons remember...but are we assuming reinvestment??  Good grief that could get complicated...
-        //std::cout<<vs.Bond_Price(r, t, portfolio[i].Maturity-currDate)<<std::endl;
       }
       else if(portfolio[i].type=="caplet"){
         valueOfPortfolio+=vs.Caplet(r, t, portfolio[i].Strike, portfolio[i].Tenor, portfolio[i].Maturity-currDate);
-      //  std::cout<<vs.Caplet(r, t, portfolio[i].Strike, portfolio[i].Tenor, portfolio[i].Maturity-currDate)<<std::endl;
       }
       else if(portfolio[i].type=="swaption"){
         valueOfPortfolio+=vs.Swaption(r, t, portfolio[i].Strike, portfolio[i].Tenor, portfolio[i].UnderlyingMaturity-currDate, portfolio[i].Maturity-currDate);
       }
       else if(portfolio[i].type=="call"){
-        //double val=vs.Bond_Call(r, t, portfolio[i].Strike, portfolio[i].UnderlyingMaturity-currDate, portfolio[i].Maturity-currDate);
-        //if(val!=val){ //then nan
-          //std::cout<<"r: "<<r<<" t: "<<t<<" strike: "<<portfolio[i].Strike<<" underlying: "<<portfolio[i].UnderlyingMaturity-currDate<<" maturity: "<< portfolio[i].Maturity-currDate<<std::endl;
-      //  }
         valueOfPortfolio+=vs.Bond_Call(r, t, portfolio[i].Strike, portfolio[i].UnderlyingMaturity-currDate, portfolio[i].Maturity-currDate);
-        //std::cout<<vs.Bond_Call(r, t, portfolio[i].Strike, portfolio[i].UnderlyingMaturity-currDate, portfolio[i].Maturity-currDate)<<std::endl;
       }
     }
     return valueOfPortfolio;
@@ -203,8 +182,9 @@ int main(){
   auto end=std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now()-start);
 	std::cout<<"Time it took: "<<end.count()/1000.0<<std::endl;
   std::cout<<mc.getVaR(.99)<<std::endl;
+  std::cout<<mc.getEstimate()<<std::endl;
   std::cout<<mc.getError()<<std::endl;
-
+  vs.deletePointers();
 
 
 

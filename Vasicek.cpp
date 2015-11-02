@@ -5,7 +5,9 @@ Vasicek::Vasicek(YieldCurve& yield_, VolatilityCurve& vCurve_, Rate r0_){
   vCurve=vCurve_;
   r0=r0_;
   estimateSpeedVolatility();
-  createContinuousYield();
+  //createContinuousYield();
+  BSpline();
+  //createNSS();
 //estimateTheta();
 }
 Vasicek::Vasicek(YieldCurve &yield_, Speed a_, ShortRateSigma sigma_, Rate r0_){
@@ -16,22 +18,88 @@ Vasicek::Vasicek(YieldCurve &yield_, Speed a_, ShortRateSigma sigma_, Rate r0_){
   createContinuousYield();
   //estimateTheta();
 }
-void Vasicek::createContinuousYield(){ //solves for polynomial that perfectly fits yield curve.  Note that this method may have computational difficulties: consider cubic splines.
+void Vasicek::BSpline(){
   int n=yield.size();
+  SPLINTER::DataTable smp;//from "Splinter"
+  Date currDate;
+  double dt=0;
+  smp.addSample(dt, 0);
+  for(int i=0;i<n;++i){
+    yield[i].date.setScale("year");
+    dt=yield[i].date-currDate;
+    smp.addSample(dt, yield[i].value*dt);
+  }
+  bspline=new SPLINTER::BSplineApproximant(smp, SPLINTER::BSplineType::CUBIC);
+
+}
+void Vasicek::deletePointers(){
+  delete bspline;
+}
+double Vasicek::get_yield_spline(double t){
+  Eigen::VectorXd x(1);
+  x(0)=t;
+  return bspline->eval(x);
+}
+double Vasicek::get_forward_rate_spline(double t){ //f(0, t)
+  Eigen::VectorXd x(1);
+  x(0)=t;
+  Eigen::MatrixXd ans=bspline->evalJacobian(x);
+  return ans(0, 0);
+}
+void Vasicek::createNSS(){
+  Newton nt;
+  std::vector<std::function<double(std::vector<double>&, std::vector<double>&)> > meanSquare;
+  int n=yield.size();
+  std::vector<double> dataToMinimizeOver(n); //the yield from above
+  std::vector<std::vector<double> > additionalParameters(n, std::vector<double>(1)); //t
+  for(int i=0; i<n; i++){ //populate our functions to minimize over.
+    yield[i].date.setScale("year");
+    dataToMinimizeOver[i]=yield[i].value;
+    Date currDate;
+    additionalParameters[i][0]=yield[i].date-currDate;
+    //dataToMinimizeOver[i]=dataToMinimizeOver[i]*additionalParameters[i][0];
+    std::cout<<"data to minimize: "<<dataToMinimizeOver[i]<<std::endl;
+  //  additionalParameters[i][1]=vCurve[i].beginDate-currDate;
+    meanSquare.push_back([](std::vector<double> &guess, std::vector<double> &additionalParameters){
+      double tLambda=additionalParameters[0]*guess[3];
+      double expLambda=exp(-tLambda);
+      return guess[0]+guess[1]*(1-expLambda)/tLambda+guess[2]*((1-expLambda)/tLambda-expLambda);
+    });
+  }
+  std::vector<double> guess(4);
+  guess[0]=r0; //these seem decent guesses
+  guess[1]=r0;//these seem decent guesses
+  guess[2]=r0;//these seem decent guesses
+  guess[3]=r0;//these seem decent guesses
+  nt.optimize(meanSquare, additionalParameters, dataToMinimizeOver, guess);
+  theta=Theta(4);
+  for(int i=0; i<4; ++i){
+    theta[i]=guess[i];
+    std::cout<<"Theta: "<<theta[i]<<std::endl;
+  }
+}
+void Vasicek::createContinuousYield(){ //solves for polynomial that perfectly fits yield curve.  Note that this method may have computational difficulties: consider cubic splines.
+  //int n=yield.size();
+  int m=yield.size();
+  int n=4;//not exact fit...
   Eigen::MatrixXd HoldParameters(n, n);
   Eigen::VectorXd ThetaEigen(n);
   Eigen::VectorXd yieldValues(n);
   Date currDate;
-
+  int k=0;
+  double tt=0;
   for(int i=0; i<n; ++i){ //n needs to be greater than 2..
-    yieldValues(i)=yield[i].value;
+    k=i*(m/n);
     HoldParameters(i, 0)=1;
-    HoldParameters(i, 1)=yield[i].date-currDate;
+    HoldParameters(i, 1)=yield[k].date-currDate;
+    yieldValues(i)=yield[k].value*HoldParameters(i, 1);
     if(HoldParameters(i, 1)>maxMaturity){
       maxMaturity=HoldParameters(i, 1);
     }
+    tt=HoldParameters(i, 1)*HoldParameters(i, 1);
     for(int j=2; j<n; ++j){
-      HoldParameters(i, j)=pow(HoldParameters(i, 1), j);
+      HoldParameters(i, j)=tt;//pow(HoldParameters(i, 1), j);
+      tt*=HoldParameters(i, 1);
     }
   }
   ThetaEigen=HoldParameters.jacobiSvd(Eigen::ComputeThinU | Eigen::ComputeThinV).solve(yieldValues);
@@ -41,29 +109,61 @@ void Vasicek::createContinuousYield(){ //solves for polynomial that perfectly fi
     std::cout<<"Theta: "<<theta[i]<<std::endl;
   }
 }
-double Vasicek::thetaCalc(double t){ //returns theta for given (arbitrary) t.  IS this even called from anywhere?
+double Vasicek::thetaCalcPolynomial(double t){ //returns theta for given (arbitrary) t.
   int n=theta.size();
   double thetVal=0;
   double thetValD=0;
-  thetVal+=theta[0]+theta[1]*t;
-  thetValD+=theta[1];
-  double getPow=0;
+  thetVal+=theta[1];//+theta[2]*t;
+  thetValD=theta[2];
+  double getPow=t;
   for(int i=2; i<n; ++i){
-    getPow=theta[i]*pow(t, i);
-    thetVal+=getPow;
-    thetValD+=i*getPow;
+    thetVal+=theta[i]*getPow*i;
+    thetValD+=theta[i+1]*getPow*i*(i-1);
+    getPow=getPow*t;
   }
   return thetValD/a+thetVal+((sigma*sigma)/(2*a*a))*(1-exp(-2*a*t));
 }
-double Vasicek::get_yield_function(double t){ //F(0, t)
+double Vasicek::thetaCalc(double t){
+  double tLambda=t*theta[3];
+  double expLambda=exp(-tLambda);
+  double thetValD=-theta[3]*theta[1]*expLambda+theta[2]*theta[3]*expLambda-theta[2]*theta[3]*tLambda*expLambda;
+  return thetValD/a+theta[0]+theta[1]*expLambda+theta[2]*tLambda*expLambda+((sigma*sigma)/(2*a*a))*(1-exp(-2*a*t));
+}
+double Vasicek::get_yield(double t){
+  //double tLambda=t*theta[3];
+  double expLambda=exp(-t*theta[3]);
+  return theta[0]*t+theta[1]*(1-expLambda)/theta[3]+theta[2]*((1-expLambda)/theta[3]-expLambda*t);
+}
+double Vasicek::get_forward_rate(double t){ //f(0, t)
+  double tLambda=t*theta[3];
+  double expLambda=exp(-tLambda);
+  return theta[0]+theta[1]*expLambda+theta[2]*tLambda*expLambda;
+}
+double Vasicek::get_yield_polynomial(double t){ //y(0, t)*t
   int n=theta.size();
   double thetVal=0;
   thetVal+=theta[0]+theta[1]*t;
-  double getPow=0;
+  double getPow=t*t;
   for(int i=2; i<n; ++i){
-    thetVal+=theta[i]*pow(t, i);
+    thetVal+=theta[i]*getPow;
+    getPow=getPow*t;
   }
-  return thetVal;
+  return thetVal;///t;
+}
+double Vasicek::get_forward_rate_polynomial(double t){ //f(0, t)
+  int n=theta.size();
+  double thetVal=0;
+  thetVal+=theta[1];
+  double getPow=t;
+  //double yield=0;
+  //yield+=theta[0]+theta[1]*t;
+
+  for(int i=2; i<n; ++i){
+    thetVal+=theta[i]*getPow*i;
+    getPow=getPow*t;
+    //yield+=theta[i]*getPow;
+  }
+  return thetVal;//*t+yield;
 }
 void Vasicek::estimateSpeedVolatility(){
   estimateSpeedVolatility(.3, .1);
@@ -159,16 +259,19 @@ void Vasicek::estimateSpeedVolatility(double guessMu, double guessSigma){
 
 
 Discount Vasicek::Bond_Price(Rate r, FutureTime t1, BondMaturity t2) {
+  if(t2<t1){
+    return 1;
+  }
   double ctT=(1-exp(-a*(t2-t1)))/a;
   double atT=-ctT*r;
-  double yieldFunc1=get_yield_function(t1);
-  double yieldFunc2=get_yield_function(t2);
-  ctT=ctT*yieldFunc1-(sigma*sigma/(4*a))*ctT*ctT*(1-exp(-2*a*t1));
-  return exp(atT+ctT)*exp(-yieldFunc2*t2)/exp(-yieldFunc1*t1); //see hull and white's seminal paper
+  double yieldFunc1=get_yield_spline(t1);
+  double yieldFunc2=get_yield_spline(t2);
+  ctT=ctT*get_forward_rate_spline(t1)-(sigma*sigma/(4*a))*ctT*ctT*(1-exp(-2*a*t1));
+  return exp(atT+ctT)*exp(-yieldFunc2)/exp(-yieldFunc1); //see hull and white's seminal paper
 }
 Discount Vasicek::Bond_Price(BondMaturity t2){
-  return exp(-get_yield_function(t2)*t2);
-  //return exp(-r0*(1-exp(-a*t2))/a+CtT(0, t2));
+  //return exp(-get_yield(t2));
+  return exp(-get_yield_spline(t2));
 }
 Price Vasicek::Bond_Put(Rate r, FutureTime t0, Strike k, BondMaturity tM, OptionMaturity t){
   return Vasicek_Put(Bond_Price(r, t0, tM), Bond_Price(r, t0, t), r, a, sigma, k, tM-t0, t-t0);
@@ -185,9 +288,11 @@ Price Vasicek::Bond_Call(Strike k , BondMaturity tM, OptionMaturity t){
 }
 
 Price Vasicek::Caplet(Rate r, FutureTime t0, Strike k , Tenor delta, OptionMaturity t){
+  //std::cout<<"max t: "<<delta+t<<std::endl;
   return Vasicek_Caplet(Bond_Price(r, t0, t+delta), Bond_Price(r, t0, t), r, a, sigma, k, delta, t-t0);
 }
 Price Vasicek::Caplet(Strike k , Tenor delta, OptionMaturity t){
+
   return Vasicek_Caplet(Bond_Price(t+delta), Bond_Price(t), r0, a, sigma, k, delta, t);
 }
 void Vasicek::setFutureTimes(std::map<double, double> &endingTimes){
@@ -196,13 +301,14 @@ void Vasicek::setFutureTimes(std::map<double, double> &endingTimes){
   }
   double t=0;
   //int i=0;
-  double r=r0;
-  auto explicitPath=[&](double r, double t1, double t2){ //
+  //double r=r0;
+  auto explicitPath=[&](double t1, double t2){ //
     //double nextR=0;
     double expT=exp(-a*(t2-t1));
-
+    double expT1=1-exp(-a*t1);
+    double expT2=1-exp(-a*t2);
     //std::vector<double> driftVol(3);
-    r=get_yield_function(t2)-get_yield_function(t1)*expT+((sigma*sigma)/(2*a*a))*(1+exp(-2*a*t2)-expT-exp(a*(t2+t1)));//make sure this is right...
+  //  r=//make sure this is right...
 
 
     /*double nextR=0;
@@ -226,16 +332,16 @@ void Vasicek::setFutureTimes(std::map<double, double> &endingTimes){
 
     nextR=nextR*exp(-a*t2)*a;*/
     std::vector<double> driftVol(3);
-    driftVol[0]=r; //drift
+    driftVol[0]=get_forward_rate_spline(t2)-get_forward_rate_spline(t1)*expT+((sigma*sigma)/(2*a*a))*(expT2*expT2-expT*expT1*expT1);; //drift
     driftVol[1]=expT; //damp
     driftVol[2]=sigma*sqrt((1-exp(-2*a*(t2-t1)))/(2*a)); //volatility
     storeParameters[t2]=driftVol;
   };
   for(auto& iter : endingTimes) { //
-    explicitPath(r, t,  iter.second);
+    explicitPath(t,  iter.second);
     t=iter.second;
-    r=storeParameters[t][0];
-    std::cout<<"r at t: "<<r<<", "<<t<<std::endl;
+    //r=storeParameters[t][0];
+
   }
 
 }
@@ -254,7 +360,7 @@ std::unordered_map<double, double> Vasicek::simulate(SimulNorm &nextNorm){ //pas
 }
 
 Price Vasicek::Swap_Price(Rate r, FutureTime t, SwapRate k, Tenor delta, Tenor freq, SwapMaturity mat){ //freq is the frequency of the bond payments...typically this is the same as delta, but not always.
-  int numDates=(int)((mat-t)/freq);
+  int numDates=(int)((mat-t-.00001)/freq);//makes sure rounds down if (mat-t)/freq is an integer
   double firstDate=mat-numDates*freq;
   std::vector<double> bonds1(numDates);
   std::vector<double> bonds2(numDates);
@@ -293,16 +399,28 @@ SwapRate Vasicek::Swap_Rate(Rate r, FutureTime t, Tenor delta, Tenor freq, SwapM
   }
   return getSwapRate(bonds1, bonds2, delta);
 }
-Price Vasicek::Swaption(Rate r, FutureTime tFut, Strike k, Tenor delta, SwapMaturity mat, OptionMaturity optMat){
-  return Swaption(r, tFut, k, delta, delta, mat, optMat);
+
+
+//Price Vasicek::Swaption(Rate r, FutureTime tFut, Strike k, Tenor delta, SwapMaturity mat, OptionMaturity optMat){
+  //return Swaption(r, tFut, k, delta, delta, mat, optMat);
+//}
+Price Vasicek::Swaption(Strike k, Tenor delta, SwapMaturity mat, OptionMaturity optMat){
+  return Swaption(r0, 0, k, delta, mat, optMat);
 }
-Price Vasicek::Swaption(Rate r, FutureTime tFut, Strike k, Tenor delta, Tenor freq, SwapMaturity mat, OptionMaturity optMat){
-  int i=0;
-  auto getTreeDrift=[&](double t, double x){
-    while(times[i]<(t+tFut)){ //increment by future time since "t" always starts at zero in tree.
-      i++;
+Price Vasicek::Swaption(Rate r, FutureTime tFut, Strike k, Tenor delta, SwapMaturity mat, OptionMaturity optMat){
+    int n=(int)((mat-optMat)/delta)-1; //subtract one since swap starts paying after one period
+    std::vector<double> cashFlows(n);
+    for(int i=0; i<n; ++i){
+      cashFlows[i]=tFut+optMat+(i+1)*delta;
     }
-    return a*(theta[i]-x)/sigma;
+    return Swaption(r, tFut, k, cashFlows, optMat);
+}
+  /*int i=0;
+  auto getTreeDrift=[&](double t, double x){
+    //while(times[i]<(t+tFut)){ //increment by future time since "t" always starts at zero in tree.
+    //  i++;
+  //  }
+    return a*(thetaCalc(t+tFut)-x)/sigma;//increment by future time since "t" always starts at zero in tree.
   };
   auto inv=[&](double x){
     return sigma*x;
@@ -311,17 +429,48 @@ Price Vasicek::Swaption(Rate r, FutureTime tFut, Strike k, Tenor delta, Tenor fr
     return 0;
   };
   auto payoff=[&](double x){
-    double swp=Swap_Rate(x, optMat, delta, freq, mat);//careful...this won't work with american options since "optMat" doesn't change (needs to be a function of t)
-    if(swp>k){
-      return swp-k;
+    double swp=Swap_Price(x, optMat, delta, freq, mat);//careful...this won't work with american options since "optMat" doesn't change (needs to be a function of t)
+    if(swp>0){
+      return swp;
     }
     else{
       return 0.0;
     }
   };
   return getSwaptionPrice(200, r/sigma, optMat-tFut, getTreeDrift, sig, inv, payoff);
+}*/
+Price Vasicek::Swaption(Rate r, FutureTime tFut, Strike k, std::vector<double>& cashFlows, OptionMaturity optMat){
+  double xStrike=0;
+  Newton nt;
+  //std::vector<std::function<double(std::vector<double>&, std::vector<double>&)> > meanSquare;
+  int n=cashFlows.size();
+  std::vector<double> c(n);
+  c[0]=k*(cashFlows[0]-optMat);
+  for(int i=1; i<n; i++){
+    c[i]=k*(cashFlows[i]-cashFlows[i-1]);
+  }
+  c[n-1]=c[n-1]+1;
+  double guess=r;
+  nt.zeros([&](double r){
+    double retVal=0;
+    for(int i=0; i<n; i++){
+      retVal+=c[i]*Bond_Price(r, optMat, cashFlows[i]);
+    }
+    return retVal-1;
+  },[&](double r){
+    double retVal=0;
+    for(int i=0; i<n; i++){
+      retVal+=c[i]*Bond_Price(r, optMat, cashFlows[i])*((exp(-a*(cashFlows[i]-optMat))-1)/a);
+    }
+    return retVal;
+  },guess);
+  double retVal=0;
+  for(int i=0; i<n; i++){
+    retVal+=c[i]*Bond_Put(r, tFut, Bond_Price(guess, optMat, cashFlows[i]), cashFlows[i], optMat);
+    //std::cout<<"retVal: "<<retVal<<" i: "<<i<<std::endl;
+  }
+  return retVal;
 }
-
 Discount Vasicek_Price(Rate r, Speed a, Mu b, ShortRateSigma sigma, BondMaturity t){
   double at=(1-exp(-a*t))/a;
   double ct=sigma*sigma;
@@ -343,6 +492,7 @@ double Vasicek_Put(Rate r, Speed a, Mu b, ShortRateSigma sigma, Strike k, BondMa
   Discount discount=Vasicek_Price(r, a, b, sigma, t);
   return BSPut(S0, k, discount, Vasicek_Volatility(a, sigma, tM, t), t);
 }
+
 
 double Vasicek_Put(Underlying S0, Discount discount, Rate r, Speed a, ShortRateSigma sigma, Strike k, BondMaturity tM, OptionMaturity t){
   return BSPut(S0, k, discount, Vasicek_Volatility(a, sigma, tM, t), t);
