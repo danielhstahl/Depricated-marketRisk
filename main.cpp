@@ -117,7 +117,14 @@ int main(){
     cashFl.push_back(.5+.25*(i+1));
   }
   std::cout<<"Swaption Analytic: "<<vs.Swaption(r0, 0, .04, cashFl, .5)<<std::endl;
-
+  std::cout<<"Future: "<<vs.EuroDollarFuture(r0, .04, .25, 1)<<std::endl;
+  std::cout<<"Forward: "<<vs.Forward(r0, .04, .25, 1)<<std::endl;
+  std::cout<<"Coupon Bond Option: "<<vs.Bond_Put(.03, .04, 1, .01, cashFl, .5)<<std::endl;
+  std::vector<double> cashFlowBond;
+  for(int i=0; i<15; i++){
+    cashFlowBond.push_back(.25*(i+1));
+  }
+  std::cout<<"Coupon Bond: "<<vs.Bond_Price(.05, .5, .01, cashFl)<<std::endl;
 
   /*end tests */
   SimulNorm simul;

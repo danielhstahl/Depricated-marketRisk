@@ -267,7 +267,7 @@ Discount Vasicek::Bond_Price(Rate r, FutureTime t1, BondMaturity t2) {
   double yieldFunc1=get_yield_spline(t1);
   double yieldFunc2=get_yield_spline(t2);
   ctT=ctT*get_forward_rate_spline(t1)-(sigma*sigma/(4*a))*ctT*ctT*(1-exp(-2*a*t1));
-  return exp(atT+ctT)*exp(-yieldFunc2)/exp(-yieldFunc1); //see hull and white's seminal paper
+  return exp(atT+ctT)*exp(-yieldFunc2+yieldFunc1); //see hull and white's seminal paper
 }
 Discount Vasicek::Bond_Price(BondMaturity t2){
   //return exp(-get_yield(t2));
@@ -294,6 +294,94 @@ Price Vasicek::Caplet(Rate r, FutureTime t0, Strike k , Tenor delta, OptionMatur
 Price Vasicek::Caplet(Strike k , Tenor delta, OptionMaturity t){
 
   return Vasicek_Caplet(Bond_Price(t+delta), Bond_Price(t), r0, a, sigma, k, delta, t);
+}
+Price Vasicek::Forward(Rate r, FutureTime t0, Tenor delta, Maturity t){
+  return (Bond_Price(r, t0, t)/Bond_Price(r, t0, t+delta)-1)/delta;
+}
+Price Vasicek::Bond_Price(Rate r, FutureTime t0, Coupon cp, std::vector<double>& cashFlows){
+  int n=cashFlows.size();
+  double retVal=0;
+  int l=0;
+  while(cashFlows[l]<t0){
+    l++;
+  }
+  for(int i=l; i<(n-1); i++){
+    retVal+=cp*Bond_Price(r, t0, cashFlows[i]);
+  }
+  retVal+=(1+cp)*Bond_Price(r, t0, cashFlows[n-1]);
+  return retVal;
+}
+Price Vasicek::Bond_Call(Rate r, FutureTime t0, Strike k, Coupon cp, std::vector<double>& cashFlows, OptionMaturity optMat){
+  double xStrike=0;
+  Newton nt;
+  //std::vector<std::function<double(std::vector<double>&, std::vector<double>&)> > meanSquare;
+  int n=cashFlows.size();
+  double guess=r;
+  nt.zeros([&](double r){
+    double retVal=0;
+    for(int i=0; i<(n-1); i++){
+      retVal+=cp*Bond_Price(r, optMat, cashFlows[i]);
+    }
+    retVal+=(1+cp)*Bond_Price(r, optMat, cashFlows[n-1]);
+    return retVal-k;
+  },[&](double r){
+    double retVal=0;
+    for(int i=0; i<(n-1); i++){
+      retVal+=cp*Bond_Price(r, optMat, cashFlows[i])*((exp(-a*(cashFlows[i]-optMat))-1)/a);
+    }
+    retVal+=(1+cp)*Bond_Price(r, optMat, cashFlows[n-1])*((exp(-a*(cashFlows[n-1]-optMat))-1)/a);
+    return retVal;
+  },guess);
+  double retVal=0;
+  for(int i=0; i<(n-1); i++){
+    retVal+=cp*Bond_Call(r, t0, Bond_Price(guess, optMat, cashFlows[i]), cashFlows[i], optMat);
+    //std::cout<<"retVal: "<<retVal<<" i: "<<i<<std::endl;
+  }
+  retVal+=(1+cp)*Bond_Call(r, t0, Bond_Price(guess, optMat, cashFlows[n-1]), cashFlows[n-1], optMat);
+  return retVal;
+}
+Price Vasicek::Bond_Put(Rate r, FutureTime t0, Strike k, Coupon cp, std::vector<double>& cashFlows, OptionMaturity optMat){
+  double xStrike=0;
+  Newton nt;
+  //std::vector<std::function<double(std::vector<double>&, std::vector<double>&)> > meanSquare;
+  int n=cashFlows.size();
+  double guess=r;
+  nt.zeros([&](double r){
+    double retVal=0;
+    for(int i=0; i<(n-1); i++){
+      retVal+=cp*Bond_Price(r, optMat, cashFlows[i]);
+    }
+    retVal+=(1+cp)*Bond_Price(r, optMat, cashFlows[n-1]);
+    return retVal-k;
+  },[&](double r){
+    double retVal=0;
+    for(int i=0; i<(n-1); i++){
+      retVal+=cp*Bond_Price(r, optMat, cashFlows[i])*((exp(-a*(cashFlows[i]-optMat))-1)/a);
+    }
+    retVal+=(1+cp)*Bond_Price(r, optMat, cashFlows[n-1])*((exp(-a*(cashFlows[n-1]-optMat))-1)/a);
+    return retVal;
+  },guess);
+  double retVal=0;
+  for(int i=0; i<(n-1); i++){
+    retVal+=cp*Bond_Put(r, t0, Bond_Price(guess, optMat, cashFlows[i]), cashFlows[i], optMat);
+    //std::cout<<"retVal: "<<retVal<<" i: "<<i<<std::endl;
+  }
+  retVal+=(1+cp)*Bond_Put(r, t0, Bond_Price(guess, optMat, cashFlows[n-1]), cashFlows[n-1], optMat);
+  return retVal;
+}
+Price Vasicek::EuroDollarFuture(Rate r, FutureTime t0, Tenor delta, Maturity t){
+  double dT=1-exp(-a*t);
+  double dt=1-exp(-a*t0);
+  double dtT=exp(-a*(t-t0));
+  double muT=r*dtT+get_forward_rate_spline(t)+(sigma*sigma*.5)*dT*dT-get_forward_rate_spline(t0)*dtT-dtT*sigma*sigma*.5*dt*dt;
+  double sigT=(sigma*sigma*.5/a)*(1-exp(-a*2*(t-t0)));
+  dtT=1-exp(-a*delta);
+  double atT=dtT/a;
+  double ctT=exp(-a*(t+delta))+dT-1.0;
+  double yieldFunc1=get_yield_spline(t);
+  double yieldFunc2=get_yield_spline(t+delta);
+  ctT=yieldFunc1-yieldFunc2+atT*get_forward_rate_spline(t)-(sigma*sigma*.25/(a*a*a))*ctT*ctT*(exp(2*a*t)-1);
+  return (exp(atT*muT+.5*sigT*atT*atT-ctT)-1)/delta;
 }
 void Vasicek::setFutureTimes(std::map<double, double> &endingTimes){
   if(!storeParameters.empty()){

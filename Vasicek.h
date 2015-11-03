@@ -24,6 +24,7 @@ typedef double SwapMaturity;
 typedef double Rate;
 typedef double SwapRate;
 typedef double FutureTime;
+typedef double Coupon;
 typedef std::vector<double> Times;
 typedef std::vector<double> Theta;
 typedef std::vector<SpotValue> YieldCurve; //SpotValue is defined in "MarketData" as {Date, double}
@@ -72,12 +73,16 @@ class Vasicek{
     //open question: should these "double" times be changed to "Date" times?  and let the class handle switching?
     Discount Bond_Price(Rate, FutureTime, BondMaturity);
     Discount Bond_Price(BondMaturity);
+    Discount Bond_Price(Rate, FutureTime, Coupon, std::vector<double>&);
 
     Price Bond_Put(Rate, FutureTime, Strike, BondMaturity, OptionMaturity) ;
     Price Bond_Put(Strike, BondMaturity, OptionMaturity) ;
-
+    Price EuroDollarFuture(Rate, FutureTime, Tenor, Maturity);
+    Price Forward(Rate, FutureTime, Tenor, Maturity);
     Price Bond_Call(Rate, FutureTime, Strike, BondMaturity, OptionMaturity) ;
     Price Bond_Call(Strike, BondMaturity, OptionMaturity) ;
+    Price Bond_Call(Rate, FutureTime, Strike, Coupon, std::vector<double>&, OptionMaturity);
+    Price Bond_Put(Rate, FutureTime, Strike, Coupon, std::vector<double>&, OptionMaturity);
     Price Caplet(Rate, FutureTime, Strike, Tenor, OptionMaturity) ;
     Price Caplet(Strike, Tenor, OptionMaturity);
     std::unordered_map<double, double> simulate(SimulNorm&);
