@@ -20,6 +20,30 @@ Vasicek::Vasicek(YieldCurve &yield_, Speed a_, ShortRateSigma sigma_, Rate r0_){
 }
 void Vasicek::BSpline(){
   int n=yield.size();
+  //SPLINTER::DataTable smp;//from "Splinter"
+  Date currDate;
+  splineX=std::vector<double>(n+1);
+  splineY=std::vector<double>(n+1);
+  double dt=0;
+  //smp.addSample(dt, 0);
+  splineX[0]=0;
+  splineY[0]=0;
+  for(int i=0;i<n;++i){
+    yield[i].date.setScale("year");
+    dt=yield[i].date-currDate;
+    splineX[i+1]=dt;
+    splineY[i+1]=yield[i].value*dt;
+  }
+  splineZ=spline(splineX, splineY);
+}
+double Vasicek::get_yield_spline(double t){
+  return splint(splineX, splineY, splineZ, t);
+}
+double Vasicek::get_forward_rate_spline(double t){ //f(0, t)
+  return splintD(splineX, splineY, splineZ, t);
+}
+/*void Vasicek::BSpline(){
+  int n=yield.size();
   SPLINTER::DataTable smp;//from "Splinter"
   Date currDate;
   double dt=0;
@@ -31,11 +55,13 @@ void Vasicek::BSpline(){
   }
   bspline=new SPLINTER::BSplineApproximant(smp, SPLINTER::BSplineType::CUBIC);
 
-}
-void Vasicek::deletePointers(){
+}*/
+/*void Vasicek::deletePointers(){
   delete bspline;
-}
-double Vasicek::get_yield_spline(double t){
+}*/
+
+
+/*double Vasicek::get_yield_spline(double t){
   Eigen::VectorXd x(1);
   x(0)=t;
   return bspline->eval(x);
@@ -45,7 +71,7 @@ double Vasicek::get_forward_rate_spline(double t){ //f(0, t)
   x(0)=t;
   Eigen::MatrixXd ans=bspline->evalJacobian(x);
   return ans(0, 0);
-}
+}*/
 void Vasicek::createNSS(){
   Newton nt;
   std::vector<std::function<double(std::vector<double>&, std::vector<double>&)> > meanSquare;

@@ -191,7 +191,7 @@ int main(){
   std::cout<<mc.getVaR(.99)<<std::endl;
   std::cout<<mc.getEstimate()<<std::endl;
   std::cout<<mc.getError()<<std::endl;
-  vs.deletePointers();
+  //vs.deletePointers();
 
 
 

@@ -13,6 +13,7 @@
 #include <Eigen/Dense>
 #include "datatable.h"
 #include "bsplineapproximant.h"
+#include "Spline.h"
 
 typedef double Tenor;
 typedef double Price;
@@ -43,7 +44,11 @@ class Vasicek{
     Theta theta;
     double minDiffT;
     int n;
-    SPLINTER::BSplineApproximant* bspline;
+    //SPLINTER::BSplineApproximant* bspline;
+    std::vector<double> splineX;
+    std::vector<double> splineY;
+    std::vector<double> splineZ;
+
     double thetaCalcPolynomial(double);
     //void estimateTheta();
     void estimateSpeedVolatility();
@@ -69,7 +74,7 @@ class Vasicek{
     double get_yield_polynomial(double);
     double get_yield_spline(double);
     double get_forward_rate_spline(double);
-    void deletePointers();
+    //void deletePointers();
     //open question: should these "double" times be changed to "Date" times?  and let the class handle switching?
     Discount Bond_Price(Rate, FutureTime, BondMaturity);
     Discount Bond_Price(BondMaturity);
