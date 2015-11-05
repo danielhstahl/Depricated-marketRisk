@@ -16,7 +16,6 @@
 #include "MarketData.h"
 #include "Newton.h"
 #include "MC.h"
-#include "HandleYield.h"
 
 int main(){
   MC mc(1000);//100000 run initially
@@ -88,19 +87,18 @@ int main(){
   }
   //HandleYield<NelsonSiegel> hy(yield); //uses nelsonsiegel method to find yield
   //Now we actually fit the data.  Note that the constructor automatically fits "Speed" and "Volatility" to the volatility surface using newton's method.  The constructor also estimates the "Theta" that fits the yield curve.
-
-  Vasicek vs(yield, volatilitySurface, r0); //this construtor currently prints the estimate of "theta".  In this example, these estimates are constant (since theta(t)=mu for all t)
-
-  for(int i=0; i<20; i++){
+  //HandleYield<CSpline> yld(yield);
+  Vasicek<CSpline> vs(yield, volatilitySurface, r0); //this construtor currently prints the estimate of "theta".  In this example, these estimates are constant (since theta(t)=mu for all t)
+  /*for(int i=0; i<20; i++){
     delt=(i+1)*.25;
 
     std::cout<<dt+delt<<": ";
 
     std::cout<<-log(Vasicek_Price(r0, a, b, sig, delt))/delt<<" ";
-    std::cout<<vs.get_yield_spline(delt)/delt<<" ";
-    std::cout<<vs.get_forward_rate_spline(delt)<<std::endl;
+    std::cout<<yld.Yield(delt)/delt<<" ";
+    std::cout<<yld.Forward(delt)<<std::endl;
   }
-
+*/
   /*some tests to ensure correct computations */
   std::cout<<vs.Bond_Price(t)<<std::endl; //This should be the same as the below
   std::cout<<Vasicek_Price(r0, a, b, sig, t)<<std::endl;  //This should be the same as above.

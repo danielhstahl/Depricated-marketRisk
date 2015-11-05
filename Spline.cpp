@@ -1,7 +1,5 @@
-//#include "nrutil.h"
 #include <vector>
 #include "Spline.h"
-//std::vector<double> spline(std::vector<double> &x, std::vector<double> &y, double yp1, double ypn)
 std::vector<double> spline(std::vector<double> &x, std::vector<double> &y)//, double yp1, double ypn)
 /*Given arrays x[0..n] and y[0..n] containing a tabulated function, i.e., yi = f(xi), with
 x1 < x2 <...< xN , and given values yp1 and ypn for the first derivative of the interpolating

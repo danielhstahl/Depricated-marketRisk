@@ -5,20 +5,55 @@
 #include <Eigen/Dense>
 #include "MarketData.h"
 #include <type_traits>
+#include "Spline.h"
 typedef std::vector<SpotValue> YieldCurve;
-
-template <int yieldType=0>
+typedef std::vector<double> Theta;
+template <int yieldType=2>
 class HandleYield {
 private:
   YieldCurve yield;
   std::vector<double> theta;
   double maxMaturity;
+  std::vector<double> splineX;
+  std::vector<double> splineY;
+  std::vector<double> splineZ;
   //char type[];
 public:
   HandleYield(YieldCurve& yield_){
     yield=yield_;
+    computeYieldFunction();
   }
-  template<class T> //this feels super hacky
+  HandleYield(){
+  }
+  template<typename T=double> //this feels super hacky
+  typename std::enable_if<(sizeof(T),yieldType==2), void>::type
+  computeYieldFunction(){//Cubic Spline
+    int n=yield.size();
+    Date currDate;
+    splineX=std::vector<double>(n+1);
+    splineY=std::vector<double>(n+1);
+    double dt=0;
+    splineX[0]=0;
+    splineY[0]=0;
+    for(int i=0;i<n;++i){
+      yield[i].date.setScale("year");
+      dt=yield[i].date-currDate;
+      splineX[i+1]=dt;
+      splineY[i+1]=yield[i].value*dt;
+    }
+    splineZ=spline(splineX, splineY);
+  }
+  template<typename T=double> //this feels super hacky
+  typename std::enable_if<(sizeof(T),yieldType==2), double>::type
+  Yield(double t){//Cubic Spline
+    return splint(splineX, splineY, splineZ, t);
+  }
+  template<typename T=double> //this feels super hacky
+  typename std::enable_if<(sizeof(T),yieldType==2), double>::type
+  Forward(double t){//Cubic Spline
+    return splintD(splineX, splineY, splineZ, t);
+  }
+  template<typename T=double> //this feels super hacky
   typename std::enable_if<(sizeof(T),yieldType==0), void>::type
   computeYieldFunction(){//NelsonSiegel
     Newton nt;
@@ -45,12 +80,12 @@ public:
     theta[3]=.05;//these seem decent guesses
     nt.optimize(meanSquare, additionalParameters, dataToMinimizeOver, theta);
   }
-  template<class T> //this feels super hacky
+  template<typename T=double> //this feels super hacky
   typename std::enable_if<(sizeof(T), yieldType==1), void>::type
   computeYieldFunction(){ //polynomial
     computeYieldFunction(0);
   }
-  template<class T> //this feels super hacky
+  template<typename T=double> //this feels super hacky
   typename std::enable_if<(sizeof(T), yieldType==1), void>::type  //polynomial
   computeYieldFunction(int n){ //solves for polynomial that perfectly fits yield curve.  Note that this method may have computational difficulties
     //int n=yield.size();
@@ -85,20 +120,20 @@ public:
       std::cout<<"Theta: "<<theta[i]<<std::endl;
     }
   }
-  template<class T> //this feels super hacky
+  template<typename T=double> //this feels super hacky
   typename std::enable_if<(sizeof(T), yieldType==0), double>::type //NelsonSiegel
   Yield(double t){
     double expLambda=exp(-t*theta[3]);
     return theta[0]*t+theta[1]*(1-expLambda)/theta[3]+theta[2]*((1-expLambda)/theta[3]-expLambda*t);
   }
-  template<class T> //this feels super hacky
+  template<typename T=double> //this feels super hacky
   typename std::enable_if<(sizeof(T), yieldType==0), double>::type //NelsonSiegel
   Forward(double t){ //f(0, t)
     double tLambda=t*theta[3];
     double expLambda=exp(-tLambda);
     return theta[0]+theta[1]*expLambda+theta[2]*tLambda*expLambda;
   }
-  template<class T> //this feels super hacky
+  template<typename T=double> //this feels super hacky
   typename std::enable_if<(sizeof(T), yieldType==1), double>::type  //Polynomial
   Yield(double t){ //y(0, t)*t
     int n=theta.size();
@@ -111,7 +146,7 @@ public:
     }
     return thetVal;///t;
   }
-  template<class T> //this feels super hacky
+  template<typename T=double> //this feels super hacky
   typename std::enable_if<(sizeof(T), yieldType)==1, double>::type //Polynomial
   Forward(double t){ //f(0, t)
     int n=theta.size();

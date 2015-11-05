@@ -3,6 +3,7 @@
 #include "Date.h"
 #define NelsonSiegel 0
 #define Polynomial 1
+#define CSpline 2
 
  struct AssetFeatures{
    Date Maturity;
