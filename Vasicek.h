@@ -41,7 +41,7 @@ double Vasicek_Call(Rate, Speed, Mu, ShortRateSigma, Strike, BondMaturity, Optio
 double Vasicek_Caplet(Rate, Speed, Mu, ShortRateSigma, Strike, Tenor, OptionMaturity);
 double Vasicek_Caplet(Underlying, Discount, Rate, Speed, ShortRateSigma, Strike, Tenor, OptionMaturity); //underlying here is B(t, T+\delta), discount is B(t, T)
 
-template <int yieldType=2>
+template <typename T>
 class Vasicek{
   private:
     YieldCurve yield;
@@ -51,7 +51,8 @@ class Vasicek{
     ShortRateSigma sigma;
     //int maxInt=0;
     //BondMaturity t;
-    HandleYield<yieldType> yieldClass;
+    //HandleYield<yieldType> yieldClass;
+    T yieldClass;
     Times times;
     std::unordered_map<double, std::vector<double> > storeParameters;
     Theta theta;
@@ -95,29 +96,27 @@ class Vasicek{
     //std::unordered_map<int, double> diffusionMap;
   public:
 
-    Vasicek(YieldCurve &yield_, VolatilityCurve &vCurve_, Rate r0_){
+    Vasicek(T &yield_, VolatilityCurve &vCurve_, Rate r0_){
       //yield=yield_;
       vCurve=vCurve_;
       r0=r0_;
       estimateSpeedVolatility();
-      yieldClass=HandleYield<yieldType>(yield_);
+      yieldClass=yield_;
       //createContinuousYield();
       //BSpline();
       //createNSS();
     //estimateTheta();
     }
 
-    Vasicek(YieldCurve &yield_, Speed a_, ShortRateSigma sigma_, Rate r0_){
+    Vasicek(T &yield_, Speed a_, ShortRateSigma sigma_, Rate r0_){
       a=a_;
       //yield=yield_;
       sigma=sigma_;
       r0=r0_;
-      yieldClass=HandleYield<yieldType>(yield_);
+      yieldClass=yield_;
       //createContinuousYield();
       //estimateTheta();
     }
-
-
 
     Discount Bond_Price(Rate r, FutureTime t1, BondMaturity t2) {
       if(t2<t1){

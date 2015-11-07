@@ -87,8 +87,8 @@ int main(){
   }
   //HandleYield<NelsonSiegel> hy(yield); //uses nelsonsiegel method to find yield
   //Now we actually fit the data.  Note that the constructor automatically fits "Speed" and "Volatility" to the volatility surface using newton's method.  The constructor also estimates the "Theta" that fits the yield curve.
-  //HandleYield<CSpline> yld(yield);
-  Vasicek<CSpline> vs(yield, volatilitySurface, r0); //this construtor currently prints the estimate of "theta".  In this example, these estimates are constant (since theta(t)=mu for all t)
+  HandleYield yld(yield);
+  Vasicek<HandleYield> vs(yld, volatilitySurface, r0); //this construtor currently prints the estimate of "theta".  In this example, these estimates are constant (since theta(t)=mu for all t)
   /*for(int i=0; i<20; i++){
     delt=(i+1)*.25;
 
@@ -189,80 +189,5 @@ int main(){
   std::cout<<mc.getVaR(.99)<<std::endl;
   std::cout<<mc.getEstimate()<<std::endl;
   std::cout<<mc.getError()<<std::endl;
-  //vs.deletePointers();
 
-
-
-  //BlackScholes bs(s0, bnd.getPrice(r0), k, t);
-  //std::cout<<bs.getPut(bnd.getVasicekVolatility(delta))<<std::endl;
-  //BlackScholes tst(40, exp(-.03), 40, 1);
-  //std::cout<<tst.getCall(.3)<<std::endl;
-  /*std::vector< std::vector<double> > sigs(3, std::vector<double>(3));
-  sigs[0][0]=.3;
-  sigs[1][0]=.2;
-  sigs[2][0]=.4;
-  sigs[0][1]=0;
-  sigs[1][1]=.15;
-  sigs[2][1]=.3;
-  sigs[0][2]=0;
-  sigs[1][2]=0;
-  sigs[2][2]=.3;
-  Matrix sig(sigs);
-  int n=5;
-  std::vector<ForwardValue> forwardLIBOR(n);
-  //for(int i=0; i<n;i++){
-  forwardLIBOR[0]={"1/1/2015", "3/31/2015", .03};
-  forwardLIBOR[1]={"2/1/2015", "4/30/2015", .03};
-  forwardLIBOR[2]={"3/1/2015", "5/31/2015", .03};
-  forwardLIBOR[3]={"4/1/2015", "6/30/2015", .03};*/
-  //}
-  /*int ncol=5;
-  int nrow=4;
-  std::vector<std::vector<double> > matP(nrow, std::vector<double>(ncol, 0));
-  std::vector<double> vP(ncol, 0);
-  for(int i=0; i<ncol; i++){
-    for(int j=0; j<nrow; j++){
-      matP[j][i]=(i+1)*(j+1)*5;
-    }
-    vP[i]=i+3;
-  }
-  Matrix mat(matP);
-  //std::cout<<vP[2]<<std::endl;
-  Matrix mt=mat*vP;
-  //std::cout<<mt.getNumRow()<<std::endl;
-  for(int i=0; i<nrow; i++){
-    std::cout<<mt[i][0]<<std::endl;
-  }*/
-
-/*  Double x=5;
-  std::cout<<x*5<<std::endl;
-  Date expiration("1/1/2016");
-  Date current;
-  std::cout<<expiration-current<<std::endl;
-  EulerSimulation<Matrix> ms(100, 100000, 1);
-
-  auto start = std::chrono::system_clock::now();
-  std::vector<std::vector<double> > init(3, std::vector<double>(1));
-  init[0][0]=.8;
-  init[1][0]=1.1;
-  init[2][0]=1.3;
-  ms.simulate(Matrix(init), alpha, [&](double t, Matrix x){return sig;});
-  auto end=std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now()-start);
-	std::cout<<"Time it took: "<<end.count()/1000.0<<std::endl;
-  std::cout<<ms.getResult()<<std::endl;
-  std::cout<<ms.getMCVol()<<std::endl;*/
-
-
-
-
-  /*int numL=20;
-	std::vector<double> libor(numL);
-  for(int i=0; i<numL; i++){
-    libor[i]=.01*i;
-  }
-  Swap swp(libor, .5);
-  double rate=swp.getRate(5);
-  std::cout<<rate<<std::endl;
-  std::cout<<swp.getPrice(5, rate)<<std::endl; //this is zero (as it should be)
-  std::cout<<swp.getBondYield(5)<<std::endl; //should be nearish the swap rate*/
 }

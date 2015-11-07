@@ -1,8 +1,8 @@
 LDFLAGS=-L../NewtonOptimization -lNewton -L../MiscellaniousUtilities -lDate  -L../eigen -L../BinomialTree -lTree
 INCLUDES=-I../NewtonOptimization -I../MiscellaniousUtilities -I../eigen -I../BinomialTree
 
-marketRisk: main.o Vasicek.o Swap.o BlackScholes.o MC.o Spline.o
-	g++ -std=c++11 -O3  -w main.o BlackScholes.o Swap.o Vasicek.o MC.o Spline.o $(LDFLAGS) $(INCLUDES) -o marketRisk -fopenmp
+marketRisk: main.o Vasicek.o Swap.o BlackScholes.o MC.o Spline.o YieldSpline.o YieldPolynomial.o YieldNelsonSiegal.o
+	g++ -std=c++11 -O3  -w main.o BlackScholes.o Swap.o Vasicek.o MC.o Spline.o YieldSpline.o YieldPolynomial.o YieldNelsonSiegal.o $(LDFLAGS) $(INCLUDES) -o marketRisk -fopenmp
 
 main.o: main.cpp Vasicek.h MarketData.h BlackScholes.h
 	g++ -std=c++11 -O3  -w -c main.cpp $(LDFLAGS) $(INCLUDES) -fopenmp
@@ -21,5 +21,14 @@ MC.o: MC.cpp
 
 Spline.o: Spline.cpp
 		g++ -std=c++11 -O3  -w -c Spline.cpp $(LDFLAGS) $(INCLUDES) -fopenmp
+
+YieldSpline.o: YieldSpline.cpp
+		g++ -std=c++11 -O3  -w -c YieldSpline.cpp $(LDFLAGS) $(INCLUDES) -fopenmp
+
+YieldPolynomial.o: YieldPolynomial.cpp
+		g++ -std=c++11 -O3  -w -c YieldPolynomial.cpp $(LDFLAGS) $(INCLUDES) -fopenmp
+
+YieldNelsonSiegal.o: YieldNelsonSiegal.cpp
+		g++ -std=c++11 -O3  -w -c YieldNelsonSiegal.cpp $(LDFLAGS) $(INCLUDES) -fopenmp
 clean:
 	     -rm *.o marketRisk
