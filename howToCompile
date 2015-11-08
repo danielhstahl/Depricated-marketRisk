@@ -1,2 +1,9 @@
 Now simply "make". 
 g++ -O3 -std=c++11 main.cpp EulerSimulation.cpp Matrix.cpp Double.cpp Date.cpp SimulNorm.cpp Swap.cpp -o marketRisk
+
+ar rcs libVasicek.a Vasicek.o
+ar rcs libYieldSpline.a YieldSpline.o
+ar rcs libBlackScholes.a BlackScholes.o
+ar rcs libMC.a MC.o
+ar rcs libSwap.a Swap.o
+ar rcs libSpline.a Spline.o

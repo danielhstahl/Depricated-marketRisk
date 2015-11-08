@@ -1,9 +1,6 @@
 #ifndef __MARKETDATA_H_INCLUDED__
 #define __MARKETDATA_H_INCLUDED__
 #include "Date.h"
-#define NelsonSiegel 0
-#define Polynomial 1
-#define CSpline 2
 
  struct AssetFeatures{
    Date Maturity;

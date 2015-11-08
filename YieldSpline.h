@@ -2,7 +2,6 @@
 #define __YIELDSPLINE_H_INCLUDED__
 #include <cmath>
 #include "MarketData.h"
-//#include <type_traits>
 #include "Spline.h"
 typedef std::vector<SpotValue> YieldCurve;
 class YieldSpline {

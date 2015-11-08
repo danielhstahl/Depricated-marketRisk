@@ -10,7 +10,6 @@
 #include <map>
 #include <unordered_map>
 #include <algorithm>
-#include "HandleYield.h"
 
 typedef double Tenor;
 typedef double Price;
@@ -48,6 +47,7 @@ class Vasicek{
     VolatilityCurve vCurve;
     Rate r0;
     Speed a;
+    Mu b;
     ShortRateSigma sigma;
     //int maxInt=0;
     //BondMaturity t;
@@ -55,7 +55,7 @@ class Vasicek{
     T yieldClass;
     Times times;
     std::unordered_map<double, std::vector<double> > storeParameters;
-    Theta theta;
+    //Theta theta;
     double minDiffT;
     int n;
 
@@ -97,15 +97,11 @@ class Vasicek{
   public:
 
     Vasicek(T &yield_, VolatilityCurve &vCurve_, Rate r0_){
-      //yield=yield_;
       vCurve=vCurve_;
       r0=r0_;
       estimateSpeedVolatility();
       yieldClass=yield_;
-      //createContinuousYield();
-      //BSpline();
-      //createNSS();
-    //estimateTheta();
+
     }
 
     Vasicek(T &yield_, Speed a_, ShortRateSigma sigma_, Rate r0_){
@@ -178,7 +174,18 @@ class Vasicek{
       retVal+=(1+cp)*Bond_Price(r, t0, cashFlows[n-1]);
       return retVal;
     }
-
+    void findHistoricalB(std::vector<SpotValue>& historicalRates){//assumes that real world rate process follows Vasicek
+      int n=historicalRates.size();
+      double dt=0;
+      b=0;//global b
+      for(int i=0; i<(n-1); ++i){
+        historicalRates[i+1].date.setScale("year");
+        dt=historicalRates[i+1].date-historicalRates[i].date;
+        b+=(historicalRates[i+1].value-exp(-dt)*historicalRates[i].value)/(1.0-exp(-dt));
+      }
+      b=b/(n-1);
+      std::cout<<"This is b: "<<b<<std::endl;
+    }
     Price Bond_Call(Rate r, FutureTime t0, Strike k, Coupon cp, std::vector<double>& cashFlows, OptionMaturity optMat){
       double xStrike=0;
       Newton nt;
@@ -264,11 +271,12 @@ class Vasicek{
       auto explicitPath=[&](double t1, double t2){ //
         //double nextR=0;
         double expT=exp(-a*(t2-t1));
-        double expT1=1-exp(-a*t1);
-        double expT2=1-exp(-a*t2);
+      //  double expT1=1-exp(-a*t1);//only used under risk neutral drift
+        //double expT2=1-exp(-a*t2); //only used under risk neutral drift
 
         std::vector<double> driftVol(3);
-        driftVol[0]=yieldClass.Forward(t2)-yieldClass.Forward(t1)*expT+((sigma*sigma)/(2*a*a))*(expT2*expT2-expT*expT1*expT1);; //drift
+        //driftVol[0]=yieldClass.Forward(t2)-yieldClass.Forward(t1)*expT+((sigma*sigma)/(2*a*a))*(expT2*expT2-expT*expT1*expT1);; //drift under risk neutral
+        driftVol[0]=b*(1-expT); //drift
         driftVol[1]=expT; //damp
         driftVol[2]=sigma*sqrt((1-exp(-2*a*(t2-t1)))/(2*a)); //volatility
         storeParameters[t2]=driftVol;

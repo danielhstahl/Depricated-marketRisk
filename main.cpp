@@ -16,6 +16,7 @@
 #include "MarketData.h"
 #include "Newton.h"
 #include "MC.h"
+#include "YieldSpline.h"
 
 int main(){
   MC mc(1000);//100000 run initially
@@ -87,8 +88,8 @@ int main(){
   }
   //HandleYield<NelsonSiegel> hy(yield); //uses nelsonsiegel method to find yield
   //Now we actually fit the data.  Note that the constructor automatically fits "Speed" and "Volatility" to the volatility surface using newton's method.  The constructor also estimates the "Theta" that fits the yield curve.
-  HandleYield yld(yield);
-  Vasicek<HandleYield> vs(yld, volatilitySurface, r0); //this construtor currently prints the estimate of "theta".  In this example, these estimates are constant (since theta(t)=mu for all t)
+  YieldSpline yld(yield);
+  Vasicek<YieldSpline> vs(yld, volatilitySurface, r0); //this construtor currently prints the estimate of "theta".  In this example, these estimates are constant (since theta(t)=mu for all t)
   /*for(int i=0; i<20; i++){
     delt=(i+1)*.25;
 
