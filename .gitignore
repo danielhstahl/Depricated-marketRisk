@@ -3,3 +3,4 @@ marketRisk
 *.csv
 *.o
 testD
+*.a
