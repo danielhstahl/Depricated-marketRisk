@@ -35,22 +35,23 @@ class MC {
       error=sqrt(error);
 		}
     template<typename FN>
-    void simulateDistribution(FN&& fn) {
-      estimate=0;
-      error=0;
-      distribution=std::vector<double>(m);
-			#pragma omp parallel//multithread using openmp
-			{
-				#pragma omp for //multithread using openmp
-				for(int j=0; j<m; j++){
-          distribution[j]=fn();
-          estimate+=distribution[j];
-          error+=distribution[j]*distribution[j];
-				}
-			}
-      estimate=estimate/(double)m;
-      error=(error/(double)m-estimate*estimate)/(double)m;
-      error=sqrt(error);
+		void simulateDistribution(FN&& fn) {
+		  estimate=0;
+		  error=0;
+		  distribution=std::vector<double>(m);
+		  #pragma omp parallel//multithread using openmp
+		  {
+		    #pragma omp for //multithread using openmp
+		    for(int j=0; j<m; j++){
+		      distribution[j]=fn();
+					//std::cout<<distribution[j]<<std::endl;
+		      estimate+=distribution[j];
+		      error+=distribution[j]*distribution[j];
+		    }
+		  }
+		  estimate=estimate/(double)m;
+		  error=(error/(double)m-estimate*estimate)/(double)m;
+		  error=sqrt(error);
 		}
 };
 #endif

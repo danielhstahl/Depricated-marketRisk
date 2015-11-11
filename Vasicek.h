@@ -54,7 +54,7 @@ class Vasicek{
     //HandleYield<yieldType> yieldClass;
     T yieldClass;
     Times times;
-    std::unordered_map<double, std::vector<double> > storeParameters;
+    std::unordered_map<int, std::vector<double> > storeParameters;
     //Theta theta;
     double minDiffT;
     int n;
@@ -95,7 +95,9 @@ class Vasicek{
   //std::unordered_map<int, std::unordered_map<int, double> > ctTMap;
     //std::unordered_map<int, double> diffusionMap;
   public:
+    Vasicek(){
 
+    }
     Vasicek(T &yield_, VolatilityCurve &vCurve_, Rate r0_){
       vCurve=vCurve_;
       r0=r0_;
@@ -261,14 +263,14 @@ class Vasicek{
       return (exp(atT*muT+.5*sigT*atT*atT-ctT)-1)/delta;
     }
 
-    void setFutureTimes(std::map<double, double> &endingTimes){
+    void setFutureTimes(std::map<int, double> &endingTimes){
       if(!storeParameters.empty()){
         storeParameters.erase(storeParameters.begin()); //time->{drift->dr, vol->v}
       }
       double t=0;
       //int i=0;
       //double r=r0;
-      auto explicitPath=[&](double t1, double t2){ //
+      auto explicitPath=[&](double t1, double t2, int key){ //
         //double nextR=0;
         double expT=exp(-a*(t2-t1));
       //  double expT1=1-exp(-a*t1);//only used under risk neutral drift
@@ -279,21 +281,19 @@ class Vasicek{
         driftVol[0]=b*(1-expT); //drift
         driftVol[1]=expT; //damp
         driftVol[2]=sigma*sqrt((1-exp(-2*a*(t2-t1)))/(2*a)); //volatility
-        storeParameters[t2]=driftVol;
+        storeParameters[key]=driftVol;
       };
       for(auto& iter : endingTimes) { //
-        explicitPath(t,  iter.second);
+        explicitPath(t,  iter.second, iter.first);
         t=iter.second;
-        //r=storeParameters[t][0];
 
       }
 
     }
 
-    std::unordered_map<double, double> simulate(SimulNorm &nextNorm){ //pasthrough of some random generating thing
-      std::unordered_map<double, double> simul;
+    std::unordered_map<int, double> simulate(SimulNorm &nextNorm){ //pasthrough of some random generating thing
+      std::unordered_map<int, double> simul;
       double r=r0;
-
       for(auto& iter : storeParameters) { //
         r=storeParameters[iter.first][0]+storeParameters[iter.first][1]*r+storeParameters[iter.first][2]*nextNorm.getNorm();//I hope SimulNorm is thread safe...
         simul[iter.first]=r;
@@ -359,16 +359,16 @@ class Vasicek{
     }
 
     Price Swaption(Rate r, FutureTime tFut, Strike k, Tenor delta, SwapMaturity mat, OptionMaturity optMat){
-        int n=(int)((mat-optMat)/delta)-1; //subtract one since swap starts paying after one period
+        int n=(int)(mat/delta)-1; //swap maturity is the length of the swap at option expiration
         std::vector<double> cashFlows(n);
         for(int i=0; i<n; ++i){
-          cashFlows[i]=tFut+optMat+(i+1)*delta;
+          cashFlows[i]=optMat+(i+1)*delta;
         }
         return Swaption(r, tFut, k, cashFlows, optMat);
     }
 
     Price Swaption(Rate r, FutureTime tFut, Strike k, std::vector<double>& cashFlows, OptionMaturity optMat){
-      double xStrike=0;
+      //double xStrike=0;
       Newton nt;
       //std::vector<std::function<double(std::vector<double>&, std::vector<double>&)> > meanSquare;
       int n=cashFlows.size();

@@ -26,18 +26,20 @@ int main(){
   std::vector<AssetFeatures> portfolio;
   for(int i=0; i<sizeOfPortfolio/4;i++){
     //Date dt=currDate+(i+1)*.005;
-    portfolio.push_back(AssetFeatures(currDate+(i+1)*.001, "bond"));
+    portfolio.push_back(AssetFeatures(currDate+(i+1)*.005, "bond"));
   }
   for(int i=0; i<sizeOfPortfolio/4;i++){
-    portfolio.push_back(AssetFeatures(currDate+(i+1)*.001, .03, .25, "caplet"));
+    portfolio.push_back(AssetFeatures(currDate+(i+1)*.005, .03, .25, "caplet"));
   }
   for(int i=0; i<sizeOfPortfolio/4;i++){
-    portfolio.push_back(AssetFeatures(currDate+(i+1)*.001, .03, .25, currDate+((i+1)*.001+2), "swaption"));
+    portfolio.push_back(AssetFeatures(currDate+(i+1)*.005, .03, .25, currDate+((i+1)*.001+2), "swaption"));
     //Strike, Tenor, Tenor, SwapMaturity, OptionMaturity
   }
   for(int i=0; i<sizeOfPortfolio/4;i++){
-    portfolio.push_back(AssetFeatures(currDate+(i+1)*.001, .99, currDate+((i+1)*.001+.25), "call"));
+    portfolio.push_back(AssetFeatures(currDate+(i+1)*.005, .99, currDate+((i+1)*.001+.25), "call"));
   }
+  //std::cout<<"test1: "<<portfolio[0].Maturity<<std::endl;
+  //std::cout<<"test2: "<<portfolio[300].Maturity<<std::endl;
   currDate.setScale("day");
   Date simulateToDate=currDate+10;//ten day VaR
   double future=simulateToDate-currDate; //convert date to double
