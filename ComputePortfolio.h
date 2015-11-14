@@ -43,23 +43,18 @@ public:
     currDate.setScale("day");
     Date simulateToDate=currDate+daysToSimulate;
     future=simulateToDate-currDate;
-    simulateToDate.setScale("ms");
-    intFuture=simulateToDate-currDate;
-    simulateToDate.setScale("year");
+    intFuture=simulateToDate.msDiff(currDate);
     for(int i=0; i<n;i++){
       if(portfolio[i].Maturity-simulateToDate<=0){//if any maturities are less than the simulated date
         diff=portfolio[i].Maturity-currDate;
-        portfolio[i].Maturity.setScale("ms");
-        key=portfolio[i].Maturity-currDate;
-        portfolio[i].Maturity.setScale("year");
+        //portfolio[i].Maturity.setScale("ms");
+        key=portfolio[i].Maturity.msDiff(currDate);
+        //portfolio[i].Maturity.setScale("year");
         holdPossibleDates[key]=diff;
         //std::cout<<"this is key: "<<key<<std::endl;
       }
     }
-    diff=simulateToDate-currDate;
-    simulateToDate.setScale("ms");
-    key=simulateToDate-currDate;
-    holdPossibleDates[key]=diff;
+    holdPossibleDates[intFuture]=future;
     PricingEngine->setFutureTimes(holdPossibleDates);
   }
   double execute(double r, double t){
@@ -79,7 +74,6 @@ public:
       else if(portfolio[i].type=="call"){
         portVal+=PricingEngine->Bond_Call(r, t, portfolio[i].Strike, portfolio[i].UnderlyingMaturity-currDate, portfolio[i].Maturity-currDate);
       }
-
     }
     return portVal;
   }
@@ -94,9 +88,7 @@ public:
       r=0;
       t=0;
       diffDate=portfolio[i].Maturity-currDate;
-      portfolio[i].Maturity.setScale("ms");
-      key=portfolio[i].Maturity-currDate;
-      portfolio[i].Maturity.setScale("year");
+      key=portfolio[i].Maturity.msDiff(currDate);
       if(ratePath.find(key)!=ratePath.end()){ //if maturity is less than simulation
         r=ratePath.find(key)->second;
         t=diffDate;
@@ -105,34 +97,31 @@ public:
         r=ratePath.find(intFuture)->second;
         t=future;
       }
+      //if(diffDate<t){
+      //  std::cout<<"Something is wrong!: t:"<<t<<" diffDate: "<<diffDate<<std::endl;
+      //}
       if(portfolio[i].type=="bond"){ //concerned here...I want this to be more automated (eg, simply call bond price automatically, but how to deal with parameters?)
         portVal+=PricingEngine->Bond_Price(r, t, diffDate);//zero coupons remember...but are we assuming reinvestment??  Good grief that could get complicated...
-        /*if(std::isnan(PricingEngine->Bond_Price(r, t, diffDate))){
-          std::cout<<"bond"<<" r: "<<r<<" t: "<<t<<std::endl;
-        }*/
       }
       else if(portfolio[i].type=="caplet"){
         portVal+=PricingEngine->Caplet(r, t, portfolio[i].Strike, portfolio[i].Tenor, diffDate);
-        /*if(std::isnan(PricingEngine->Caplet(r, t, portfolio[i].Strike, portfolio[i].Tenor, diffDate))){
-          std::cout<<"caplet "<<"r: "<<r<<" t: "<<t<<std::endl;
-        }*/
       }
       else if(portfolio[i].type=="swaption"){
         portVal+=PricingEngine->Swaption(r, t, portfolio[i].Strike, portfolio[i].Tenor, portfolio[i].UnderlyingMaturity-currDate, diffDate);
-        /*if(std::isnan(PricingEngine->Swaption(r, t, portfolio[i].Strike, portfolio[i].Tenor, portfolio[i].UnderlyingMaturity-currDate, diffDate))){
-          std::cout<<"swaption "<<"r: "<<r<<" t: "<<t<<std::endl;
-        }*/
       }
       else if(portfolio[i].type=="call"){
         portVal+=PricingEngine->Bond_Call(r, t, portfolio[i].Strike, portfolio[i].UnderlyingMaturity-currDate, diffDate);
-        /*if(std::isnan(PricingEngine->Bond_Call(r, t, portfolio[i].Strike, portfolio[i].UnderlyingMaturity-currDate, diffDate))){
-          std::cout<<"call "<<"r: "<<r<<" t: "<<t<<" "<<portfolio[i].Strike<<" "<<portfolio[i].UnderlyingMaturity-currDate<<" "<<diffDate<<std::endl;
-        }*/
+      }
+      if(std::isnan(portVal)){
+        std::cout<<"r: "<<r<<" t: "<<t<<" type: "<<portfolio[i].type<<" diffdate: "<<diffDate<<" underlying: "<<portfolio[i].UnderlyingMaturity-currDate<<" date: "<<portfolio[i].UnderlyingMaturity<<std::endl;
+        break;
       }
     }
   //  std::cout<<"test for bond: "<<PricingEngine->Bond_Price(r, t, t)<<" r: "<<r<<" t: "<<t<<std::endl;
     //std::cout<<"diffdate: "<<diffDate<<std::endl;
-  //  std::cout<<"portfolio value: "<<portVal<<"r: "<<r<<"t: "<<t<<std::endl;
+    //std::cout<<"portfolio value: "<<portVal<<"r: "<<r<<"t: "<<t<<std::endl;
+    //std::cout<<"future: "<<intFuture<<" r: "<<std::endl;
+    //std::cout<<"minR: "<<minR<<std::endl;
     return portVal;
   }
 

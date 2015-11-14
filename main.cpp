@@ -15,7 +15,7 @@
 #include "Vasicek.h"
 #include "MarketData.h"
 #include "Newton.h"
-#include "MC.h"
+#include "MC.hpp"
 #include "YieldSpline.h"
 
 int main(){
@@ -26,33 +26,68 @@ int main(){
   std::vector<AssetFeatures> portfolio;
   for(int i=0; i<sizeOfPortfolio/4;i++){
     //Date dt=currDate+(i+1)*.005;
-    portfolio.push_back(AssetFeatures(currDate+(i+1)*.005, "bond"));
+    portfolio.push_back({
+      currDate+(i+1)*.005,
+      currDate+(i+1)*.005,
+      0,
+      0,
+      "bond"
+    });
+    //portfolio.push_back(AssetFeatures(currDate+(i+1)*.005, "bond"));
   }
   for(int i=0; i<sizeOfPortfolio/4;i++){
-    portfolio.push_back(AssetFeatures(currDate+(i+1)*.005, .03, .25, "caplet"));
+    portfolio.push_back({
+      currDate+(i+1)*.005,
+      currDate+(i+1)*.005,
+      .03,
+      .25,
+      "caplet"
+    });
+    //portfolio.push_back(AssetFeatures(currDate+(i+1)*.005, .03, .25, "caplet"));
   }
   for(int i=0; i<sizeOfPortfolio/4;i++){
-    portfolio.push_back(AssetFeatures(currDate+(i+1)*.005, .03, .25, currDate+((i+1)*.001+2), "swaption"));
+    portfolio.push_back({
+      currDate+(i+1)*.005,
+      currDate+((i+1)*.001+2),
+      .03,
+      .25,
+      "swaption"
+    });
+    //portfolio.push_back(AssetFeatures(currDate+(i+1)*.005, .03, .25, currDate+((i+1)*.001+2), "swaption"));
     //Strike, Tenor, Tenor, SwapMaturity, OptionMaturity
   }
   for(int i=0; i<sizeOfPortfolio/4;i++){
-    portfolio.push_back(AssetFeatures(currDate+(i+1)*.005, .99, currDate+((i+1)*.001+.25), "call"));
+    portfolio.push_back({
+      currDate+(i+1)*.005,
+      currDate+((i+1)*.001+.25),
+      .99,
+      0,
+      "call"
+    });
+    //portfolio.push_back(AssetFeatures(currDate+(i+1)*.005, .99, currDate+((i+1)*.001+.25), "call"));
   }
   //std::cout<<"test1: "<<portfolio[0].Maturity<<std::endl;
   //std::cout<<"test2: "<<portfolio[300].Maturity<<std::endl;
   currDate.setScale("day");
   Date simulateToDate=currDate+10;//ten day VaR
   double future=simulateToDate-currDate; //convert date to double
-  std::map<double, double> holdPossibleDates; //using "map" to ensure sorted keys
+  std::map<int, double> holdPossibleDates; //using "map" to ensure sorted keys
   double diff=0;
+  int key=0;
   for(int i=0; i<sizeOfPortfolio;i++){
     if(portfolio[i].Maturity-simulateToDate<=0){//if any maturities are less than the simulated date
       diff=portfolio[i].Maturity-currDate;
-      holdPossibleDates[diff]=diff;
+      portfolio[i].Maturity.setScale("ms");
+      key=portfolio[i].Maturity-currDate;
+      portfolio[i].Maturity.setScale("year");
+      holdPossibleDates[key]=diff;
     }
   }
   diff=simulateToDate-currDate;
-  holdPossibleDates[diff]=diff;
+  simulateToDate.setScale("ms");
+  key=simulateToDate-currDate;
+  simulateToDate.setScale("year");
+  holdPossibleDates[key]=diff;
  /*end portfolio*/
 
   double a=.4; //speed
@@ -154,7 +189,7 @@ int main(){
   std::cout<<"Current value of portfolio: "<<portVal<<std::endl;
   auto start = std::chrono::system_clock::now();
   mc.simulateDistribution([&](){
-    std::unordered_map<double, double> ratePath=vs.simulate(simul); //simulates path
+    std::unordered_map<int, double> ratePath=vs.simulate(simul); //simulates path
     double valueOfPortfolio=0;
     //bond, caplet, call
     double r=0;
