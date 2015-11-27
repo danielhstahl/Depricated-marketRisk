@@ -1,5 +1,4 @@
 #include "Vasicek.h"
-
 Discount Vasicek_Price(Rate r, Speed a, Mu b, ShortRateSigma sigma, BondMaturity t){
   double at=(1-exp(-a*t))/a;
   double ct=sigma*sigma;

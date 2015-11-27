@@ -15,7 +15,7 @@
 #include "Vasicek.h"
 #include "MarketData.h"
 #include "Newton.h"
-#include "MC.hpp"
+#include "MC.h"
 #include "YieldSpline.h"
 
 int main(){
@@ -138,17 +138,19 @@ int main(){
   }
 */
   /*some tests to ensure correct computations */
-  std::cout<<vs.Bond_Price(t)<<std::endl; //This should be the same as the below
+  /*std::cout<<vs.Bond_Price(t)<<std::endl; //This should be the same as the below
   std::cout<<Vasicek_Price(r0, a, b, sig, t)<<std::endl;  //This should be the same as above.
   std::cout<<Vasicek_Caplet(r0, a, b, sig, .04, delta, t)<<std::endl; //option on simple interest rate
   std::cout<<vs.Caplet(r0, .04, .04, delta, t)<<std::endl;
 
   std::cout<<vs.Caplet(r0, 0, .04, delta, t)<<std::endl;
   std::cout<<vs.Bond_Call(.02, 0, .92, 3, 2)<<std::endl;
-  std::cout<<vs.Bond_Put(.01, 0, .99, 3, 2)<<std::endl;
-  std::cout<<vs.Swap_Rate(.25, 4.5)<<std::endl;
-  std::cout<<"Swaption: "<<vs.Swaption(r0, 0, .04, .25, 4.5, .5)<<std::endl;//Rate, FutureTime, Strike, Tenor, SwapMaturity, OptionMaturity
-  std::vector<double> cashFl;
+  std::cout<<vs.Bond_Put(.01, 0, .99, 3, 2)<<std::endl;*/
+
+  //std::cout<<"swap in 3 monhts: "<<vs.Swap_Rate(.02, .05, .25, .25, 1)<<std::endl; //Swap_Rate(Rate r, FutureTime t, Tenor delta, Tenor freq, SwapMaturity mat)
+  //std::cout<<"current swap: "<<vs.Swap_Rate(.02, 0, .25, .25, 1)<<std::endl;
+//  std::cout<<"Swaption: "<<vs.Swaption(r0, 0, .04, .25, 4.5, .5)<<std::endl;//Rate, FutureTime, Strike, Tenor, SwapMaturity, OptionMaturity
+  /*std::vector<double> cashFl;
   for(int i=0; i<15; i++){
     cashFl.push_back(.5+.25*(i+1));
   }
@@ -160,8 +162,13 @@ int main(){
   for(int i=0; i<15; i++){
     cashFlowBond.push_back(.25*(i+1));
   }
-  std::cout<<"Coupon Bond: "<<vs.Bond_Price(.05, .5, .01, cashFl)<<std::endl;
-
+  std::cout<<"Coupon Bond: "<<vs.Bond_Price(.05, .5, .01, cashFl)<<std::endl;*/
+  std::cout<<"Future: "<<vs.EuroDollarFuture(r0, .04, .25, 5)<<std::endl;
+  std::cout<<"Forward: "<<vs.Forward(r0, .04, .25, 5)<<std::endl;
+  std::cout<<"actual: "<<vs.EuroDollarFuture(r0, .04, .25, 5)-vs.Forward(r0, .04, .25, 5)<<std::endl;
+  std::cout<<"adjustemnt: "<<vs.EuroDollarFutureAdjustment(r0, .04, .25, 5)<<std::endl;
+  std::cout<<"forward from future: "<<vs.ForwardFromFuture(r0, .04, .25, 5)<<std::endl;
+  std::cout<<"forward from future (simple): "<<vs.EuroDollarFuture(r0, .04, .25, 5)-vs.EuroDollarFutureAdjustment(r0, .04, .25, 5)<<std::endl;
   /*end tests */
   SimulNorm simul;
   vs.setFutureTimes(holdPossibleDates);

@@ -3,6 +3,7 @@
 #define _USE_MATH_DEFINES
 #include <cmath>
 #include <vector>
+#include <future>
 #include <algorithm>
 class MC {
 	private:
@@ -38,15 +39,25 @@ class MC {
 		void simulateDistribution(FN&& fn) {
 		  estimate=0;
 		  error=0;
+			int percComplete=0;
+			int modulo=(int)m*.01;
 		  distribution=std::vector<double>(m);
 		  #pragma omp parallel//multithread using openmp
 		  {
 		    #pragma omp for //multithread using openmp
 		    for(int j=0; j<m; j++){
 		      distribution[j]=fn();
-					//std::cout<<distribution[j]<<std::endl;
 		      estimate+=distribution[j];
 		      error+=distribution[j]*distribution[j];
+					percComplete++;
+					std::cout<<"{\"percent\": "<<((double)percComplete)/m<<"}"<<std::endl;
+					//if(percComplete % modulo==0){
+						//std::future<void> result(std::async([](double percent, int m){
+						//	std::cout<<"{percent: "<<percent/m<<"}"<<std::endl;
+						//	std::cout<<"{percent: "<<percComplete/m<<"}"<<std::endl;
+						//},percComplete, m));
+						//result.get();
+					//}
 		    }
 		  }
 		  estimate=estimate/(double)m;

@@ -1,14 +1,24 @@
-LDFLAGS=-L../NewtonOptimization -lNewton -L../MiscellaniousUtilities -lDate  -L../eigen -L../BinomialTree -lTree
-INCLUDES=-I../NewtonOptimization -I../MiscellaniousUtilities -I../eigen -I../BinomialTree -I../rapidjson
+LDFLAGS=-L../NewtonOptimization -lNewton -L../MiscellaniousUtilities -lDate  -L../eigen -L../BinomialTree -lTree -L../AutoDiff -lAutoDiff
+INCLUDES=-I../NewtonOptimization -I../MiscellaniousUtilities -I../eigen -I../BinomialTree -I../rapidjson -I../AutoDiff
 
-marketRisk: main_input.o Vasicek.o Swap.o BlackScholes.o MC.o Spline.o YieldSpline.o YieldPolynomial.o YieldNelsonSiegal.o
-	g++ -std=c++11 -O3  -w -fPIC main_input.o BlackScholes.o Swap.o Vasicek.o MC.o Spline.o YieldSpline.o YieldPolynomial.o YieldNelsonSiegal.o $(LDFLAGS) $(INCLUDES) -o marketRisk -fopenmp
+marketRisk: main_input.o Vasicek.o Swap.o BlackScholes.o MC.o Spline.o YieldSpline.o YieldPolynomial.o BondUtilities.o YieldNelsonSiegal.o
+	g++ -std=c++11 -O3  -w -fPIC main_input.o BlackScholes.o Swap.o Vasicek.o MC.o Spline.o YieldSpline.o YieldPolynomial.o BondUtilities.o YieldNelsonSiegal.o $(LDFLAGS) $(INCLUDES) -o marketRisk -fopenmp
 
-main_input.o: main_input.cpp Vasicek.h MarketData.h BlackScholes.h YieldSpline.h SimulNorm.h ComputePortfolio.h MC.h
+main_input.o: main_input.cpp Vasicek.h MarketData.h BlackScholes.h YieldSpline.h SimulNorm.h ComputePortfolio.h MC.h BondUtilities.h
 	g++ -std=c++11 -O3  -w -c -fPIC main_input.cpp $(LDFLAGS) $(INCLUDES) -fopenmp
+
+#marketRisk: main.o Vasicek.o Swap.o BlackScholes.o MC.o Spline.o YieldSpline.o YieldPolynomial.o YieldNelsonSiegal.o
+#	g++ -std=c++11 -O3  -w -fPIC main.o BlackScholes.o Swap.o Vasicek.o MC.o Spline.o YieldSpline.o YieldPolynomial.o YieldNelsonSiegal.o $(LDFLAGS) $(INCLUDES) -o marketRisk -fopenmp
+
+#main.o: main.cpp Vasicek.h MarketData.h BlackScholes.h YieldSpline.h SimulNorm.h ComputePortfolio.h MC.h
+#	g++ -std=c++11 -O3  -w -c -fPIC main.cpp $(LDFLAGS) $(INCLUDES) -fopenmp
+
 
 Vasicek.o: Vasicek.cpp MarketData.h BlackScholes.h
 	g++ -std=c++11 -O3  -w -c -fPIC Vasicek.cpp $(LDFLAGS) $(INCLUDES) -fopenmp
+
+BondUtilities.o: BondUtilities.cpp
+	g++ -std=c++11 -O3  -w -c -fPIC BondUtilities.cpp $(LDFLAGS) $(INCLUDES) -fopenmp
 
 Swap.o: Swap.cpp MarketData.h
 	g++ -std=c++11 -O3  -w -c -fPIC Swap.cpp $(LDFLAGS) $(INCLUDES) -fopenmp

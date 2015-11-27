@@ -47,11 +47,8 @@ public:
     for(int i=0; i<n;i++){
       if(portfolio[i].Maturity-simulateToDate<=0){//if any maturities are less than the simulated date
         diff=portfolio[i].Maturity-currDate;
-        //portfolio[i].Maturity.setScale("ms");
         key=portfolio[i].Maturity.msDiff(currDate);
-        //portfolio[i].Maturity.setScale("year");
         holdPossibleDates[key]=diff;
-        //std::cout<<"this is key: "<<key<<std::endl;
       }
     }
     holdPossibleDates[intFuture]=future;
@@ -107,17 +104,17 @@ public:
         portVal+=PricingEngine->Caplet(r, t, portfolio[i].Strike, portfolio[i].Tenor, diffDate);
       }
       else if(portfolio[i].type=="swaption"){
-        portVal+=PricingEngine->Swaption(r, t, portfolio[i].Strike, portfolio[i].Tenor, portfolio[i].UnderlyingMaturity-currDate, diffDate);
+        portVal+=PricingEngine->Swaption(r, t, portfolio[i].Strike, portfolio[i].Tenor, (portfolio[i].UnderlyingMaturity-currDate)-diffDate, diffDate);
       }
       else if(portfolio[i].type=="call"){
         portVal+=PricingEngine->Bond_Call(r, t, portfolio[i].Strike, portfolio[i].UnderlyingMaturity-currDate, diffDate);
       }
-      if(std::isnan(portVal)){
+      /*if(std::isnan(portVal)){
         std::cout<<"r: "<<r<<" t: "<<t<<" type: "<<portfolio[i].type<<" diffdate: "<<diffDate<<" underlying: "<<portfolio[i].UnderlyingMaturity-currDate<<" date: "<<portfolio[i].UnderlyingMaturity<<std::endl;
         break;
-      }
+      }*/
     }
-  //  std::cout<<"test for bond: "<<PricingEngine->Bond_Price(r, t, t)<<" r: "<<r<<" t: "<<t<<std::endl;
+  //  std::cout<<"test for bond: "<<PricingEngine->Swaption(r, t, .03, .25, 2.030556, .030556)<<" r: "<<r<<" t: "<<t<<std::endl;
     //std::cout<<"diffdate: "<<diffDate<<std::endl;
     //std::cout<<"portfolio value: "<<portVal<<"r: "<<r<<"t: "<<t<<std::endl;
     //std::cout<<"future: "<<intFuture<<" r: "<<std::endl;
